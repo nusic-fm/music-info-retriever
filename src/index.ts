@@ -12,7 +12,8 @@ import {
 } from "./cyanite/upload.js";
 import axios from "axios";
 import FormData from "form-data";
-import ffmpeg from "fluent-ffmpeg";
+// import ffmpeg from "fluent-ffmpeg";
+import { getAudioDurationInSeconds } from "get-audio-duration";
 
 const app = express();
 app.use(cors());
@@ -62,7 +63,7 @@ app.post("/sections", upload.single("audio"), async (req, res) => {
   // Get the audio file from the request.
   const uploadedFile = req.file;
   const tempPath = uploadedFile.path;
-  console.log({ tempPath });
+
   if (!uploadedFile) {
     res.status(500).send("File is missing in the request");
     return;
@@ -87,20 +88,22 @@ app.post("/sections", upload.single("audio"), async (req, res) => {
       }
     );
     // Fetch Duration of the music
-    const durationPromise: Promise<number> = new Promise((res, rej) => {
-      ffmpeg()
-        .input(tempPath)
-        .ffprobe(async (err, metadata) => {
-          if (err) {
-            console.error(err);
-            rej();
-          }
+    const durationPromise: Promise<number> =
+      getAudioDurationInSeconds(tempPath);
+    // new Promise((res, rej) => {
+    //   ffmpeg()
+    //     .input(tempPath)
+    //     .ffprobe(async (err, metadata) => {
+    //       if (err) {
+    //         console.error(err);
+    //         rej();
+    //       }
 
-          const durationInSeconds = metadata.format.duration;
-          console.log("Audio duration:", durationInSeconds, "seconds");
-          res(durationInSeconds);
-        });
-    });
+    //       const durationInSeconds = metadata.format.duration;
+    //       console.log("Audio duration:", durationInSeconds, "seconds");
+    //       res(durationInSeconds);
+    //     });
+    // });
 
     const [annotationObj, duration] = await Promise.all([
       annotationePromise,
@@ -129,18 +132,24 @@ app.post("/sections", upload.single("audio"), async (req, res) => {
       .filter((n) => !!n)
       .map((n) => n * barDuration);
     const sectionsIdx = [];
+    const extrasForTesting = [];
+
     results.map((s) => {
       const beatStart = s[0];
       // const beatEnd = s[s.length - 1];
       const elem = findClosestElement(endBarInSeconds, beatStart);
       const idx = endBarInSeconds.indexOf(elem) + 1;
-      console.log(beatStart, elem, idx);
+      extrasForTesting.push({
+        energyStart: Math.round(beatStart * 100) / 100,
+        barAt: elem,
+        selectedBar: idx,
+      });
       if (idealForFourthMeter.includes(elem)) {
         sectionsIdx.push(idx);
       }
     });
 
-    res.json({ sections: sectionsIdx });
+    res.json({ sections: sectionsIdx, extrasForTesting });
     return;
   } catch (e) {
     console.log("err: ", e.message);
