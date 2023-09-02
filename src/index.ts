@@ -68,11 +68,7 @@ app.post("/sections", upload.single("audio"), async (req, res) => {
     res.status(500).send("File is missing in the request");
     return;
   }
-  const bpm = req.body.bpm;
-  if (!bpm) {
-    res.status(500).send("BPM missing in the request");
-    return;
-  }
+  const bpmFromArtist = req.body.bpm; // Optional
   const form = new FormData();
   form.append("file", fs.createReadStream(tempPath) as any);
 
@@ -111,6 +107,13 @@ app.post("/sections", upload.single("audio"), async (req, res) => {
     ]);
 
     const results = annotationObj.data.results;
+    const key = annotationObj.data.key;
+    const bpm = bpmFromArtist ?? annotationObj.data.bpm;
+
+    if (!bpm) {
+      res.status(500).send("Error analysing the BPM ");
+      return;
+    }
     // const threashold = annotationObj.data.threashold;
     const beatsPerSecond = Math.round((Number(bpm) / 60) * 100) / 100;
     const totalBeats = Math.round(beatsPerSecond * duration * 100) / 100;
@@ -144,12 +147,21 @@ app.post("/sections", upload.single("audio"), async (req, res) => {
         barAt: elem,
         selectedBar: idx,
       });
-      if (idealForFourthMeter.includes(elem)) {
+      if (
+        idealForFourthMeter.includes(elem) &&
+        sectionsIdx.includes(idx) === false
+      ) {
         sectionsIdx.push(idx);
       }
     });
 
-    res.json({ sections: sectionsIdx, extrasForTesting });
+    res.json({
+      sections: sectionsIdx,
+      bpm,
+      key,
+      totalNumberOfBars: noOfBars,
+      extrasForTesting,
+    });
     return;
   } catch (e) {
     console.log("err: ", e.message);
