@@ -144,8 +144,8 @@ app.post("/sections", upload.single("audio"), async (req, res) => {
       const idx = endBarInSeconds.indexOf(elem) + 1;
       extrasForTesting.push({
         energyStart: Math.round(beatStart * 100) / 100,
-        barAt: elem,
-        selectedBar: idx,
+        barAt: `${elem}s`,
+        barNo: idx,
       });
       if (
         idealForFourthMeter.includes(elem) &&
@@ -158,9 +158,11 @@ app.post("/sections", upload.single("audio"), async (req, res) => {
     res.json({
       sections: sectionsIdx,
       bpm,
+      duration,
       key,
       totalNumberOfBars: noOfBars,
       extrasForTesting,
+      energyChanges: results,
     });
     return;
   } catch (e) {
